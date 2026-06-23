@@ -98,11 +98,11 @@ export default function DeadlineCard({ deadline, onToggleSubtask, onTriggerRecov
       <div className="grid grid-cols-3 bg-white/5 py-3 border-t border-b border-white/10 text-center font-mono relative z-10">
         <div>
           <span className="text-[10px] text-slate-500 block font-sans font-bold tracking-widest">TOTAL WORKLOAD</span>
-          <span className="text-sm font-semibold text-slate-205">{deadline.estimatedHours} hrs</span>
+          <span className="text-sm font-semibold text-slate-200">{deadline.estimatedHours} hrs</span>
         </div>
         <div>
           <span className="text-[10px] text-slate-500 block font-sans font-bold tracking-widest">PROGRESS ENGINE</span>
-          <span className="text-sm font-semibold text-indigo-400">{Math.round(deadline.currentProgress)}%</span>
+          <span className="text-sm font-semibold text-indigo-400">{Math.round(deadline.currentProgress || 0)}%</span>
         </div>
         <div>
           <span className="text-[10px] text-slate-500 block font-sans font-bold tracking-widest">BUFFER MULTIPLIER</span>
@@ -118,7 +118,7 @@ export default function DeadlineCard({ deadline, onToggleSubtask, onTriggerRecov
             <div className="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden">
               <div 
                 className={`h-full transition-all duration-500 rounded-full ${deadline.riskScore >= 70 ? 'bg-gradient-to-r from-indigo-500 to-rose-500' : 'bg-gradient-to-r from-indigo-600 to-emerald-500'}`}
-                style={{ width: `${deadline.currentProgress || 2}%` }}
+                style={{ width: `${deadline.currentProgress || 0}%` }}
               ></div>
             </div>
             {deadline.riskReason && (
@@ -131,11 +131,11 @@ export default function DeadlineCard({ deadline, onToggleSubtask, onTriggerRecov
           {/* Subtask Listing */}
           <div>
             <span className="text-xs font-bold text-slate-400 block mb-2.5 uppercase tracking-wider">Guardian Structured Subtask Action Path:</span>
-            {deadline.subtasks.length === 0 ? (
+            {(deadline.subtasks || []).length === 0 ? (
               <p className="text-xs text-slate-500 italic">No actions registered in path.</p>
             ) : (
               <div className="space-y-2">
-                {deadline.subtasks.map((task) => (
+                {(deadline.subtasks || []).map((task) => (
                   <label
                     key={task.id}
                     className={`flex items-start justify-between p-3 rounded-xl border transition cursor-pointer select-none ${task.completed ? 'bg-emerald-950/20 border-emerald-900/30 text-slate-500 hover:border-emerald-900/50' : 'bg-slate-950/60 border-slate-900 text-slate-200 hover:border-slate-800'}`}

@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Deadline, UserPreferences, GoogleCalendarEvent, GoogleTaskItem, BlockerDiagnosis } from './types';
+import { Deadline, UserPreferences, GoogleCalendarEvent, GoogleTaskItem, BlockerDiagnosis, RecoveryAction } from './types';
 import DeadlineCard from './components/DeadlineCard';
 import TodayActionPlan from './components/TodayActionPlan';
 import BlockerDiagnoser from './components/BlockerDiagnoser';
 import GoogleSyncPanel from './components/GoogleSyncPanel';
 import EnergyConfig from './components/EnergyConfig';
 import AddDeadlineModal from './components/AddDeadlineModal';
+import FailureForecast from './components/FailureForecast';
+import InterventionCenter from './components/InterventionCenter';
+import AutonomousInterventionEngine from './components/AutonomousInterventionEngine';
+import OutcomeSimulator from './components/OutcomeSimulator';
+import GuardianMemory from './components/GuardianMemory';
 import { Shield, Sparkles, Plus, RefreshCw, Layers, Calendar, Compass, ShieldCheck, HeartPulse } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'deadline_guardian_data';
@@ -358,6 +363,65 @@ export default function App() {
     }
   };
 
+  const handleApplyIntervention = (deadlineId: string, revisedTitle: string, actions: RecoveryAction[], newRiskScore: number) => {
+    const updated = deadlines.map(dl => {
+      if (dl.id !== deadlineId) return dl;
+
+      const incomplete = dl.subtasks.filter(t => !t.completed);
+      const completed = dl.subtasks.filter(t => t.completed);
+
+      // Create consolidated ones
+      const consolidatedSubtasks = [
+        {
+          id: `st-intervene-${Date.now()}-1`,
+          title: "Consolidated Milestone: " + (actions[0]?.recoveredAction.split(':')[0] || "Merged action path"),
+          estimatedHours: Math.round(incomplete.reduce((acc, t) => acc + t.estimatedHours, 0) * 0.6), // 40% time saved!
+          completed: false,
+          recommendedDate: dl.targetDate,
+          energyRequired: 'high' as const,
+          phase: 'execution' as const
+        },
+        {
+          id: `st-intervene-${Date.now()}-2`,
+          title: "Guardian Intervention: " + (actions[1]?.recoveredAction.split(':')[0] || "Aesthetic scope reduction"),
+          estimatedHours: 0.5,
+          completed: false,
+          recommendedDate: dl.targetDate,
+          energyRequired: 'medium' as const,
+          phase: 'refinement' as const
+        }
+      ];
+
+      const merged = [...completed, ...consolidatedSubtasks];
+      const compCount = merged.filter(t => t.completed).length;
+      const progress = merged.length > 0 ? (compCount / merged.length) * 100 : 0;
+
+      const trace = dl.recoveryHistory || [];
+      const newHistory = [
+        {
+          timestamp: new Date().toISOString(),
+          reason: "Emergency autonomous Guardian Intervention activated to rescue project path.",
+          actions,
+          previousRiskScore: dl.riskScore
+        },
+        ...trace
+      ];
+
+      return {
+        ...dl,
+        subtasks: merged,
+        currentProgress: progress,
+        riskScore: newRiskScore,
+        status: 'on_track' as const,
+        riskReason: `Intervention activated! Autonomous restructuring trimmed workload by ${actions.reduce((acc, a) => acc + a.timeSavingMin, 0)} minutes.`,
+        recoveryHistory: newHistory
+      };
+    });
+
+    saveState(updated);
+    triggerToast("Guardian Rescue Strategy Inject Completed!");
+  };
+
   const handleUpdatePreferences = (updatedPrefs: UserPreferences) => {
     saveState(deadlines, updatedPrefs);
     triggerToast("Circadian preferences synchronized!");
@@ -414,7 +478,23 @@ export default function App() {
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 space-y-8">
+        
+        {/* Predictive AI Core Section at top of the dashboard */}
+        <FailureForecast deadlines={deadlines} preferences={preferences} />
+
+        <InterventionCenter 
+          deadlines={deadlines} 
+          preferences={preferences} 
+          onApplyIntervention={handleApplyIntervention} 
+        />
+
+        <AutonomousInterventionEngine
+          deadlines={deadlines}
+          preferences={preferences}
+          onApplyIntervention={handleApplyIntervention}
+        />
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* Left Panel: Active Surveillance Board */}
@@ -487,6 +567,16 @@ export default function App() {
           </div>
 
         </div>
+
+        <div className="w-full h-px bg-slate-900/50 my-10 border-t border-dashed border-slate-900"></div>
+
+        {/* Future Simulators & Experience Audits */}
+        <OutcomeSimulator deadlines={deadlines} preferences={preferences} />
+
+        <div className="w-full h-px bg-slate-900/50 my-10 border-t border-dashed border-slate-900"></div>
+
+        <GuardianMemory deadlines={deadlines} preferences={preferences} />
+
       </main>
 
       {/* Add Deadline Dialog */}

@@ -221,6 +221,393 @@ You MUST return your response as a valid JSON object matching this structure:
   }
 });
 
+// 4. Guardian Failure Forecast
+app.post("/api/gemini/failure-forecast", async (req, res) => {
+  try {
+    const { deadlines, preferences } = req.body;
+    const ai = getAI();
+    const todayDate = new Date().toISOString().split('T')[0];
+
+    const systemInstruction = 
+      "You are the Guardian Failure Forecast processor for Deadline Guardian, an autonomous predictive failure engine. " +
+      "Your goal is to mathematically and psychologically explain WHY failure is predicted for active user deadlines, " +
+      "providing realistic failure probability, risk drivers with individual impact values (+ points), expected progress vs actual, " +
+      "and an analytical, serious explanation of the bottleneck. Output strict JSON. Respond only with plain JSON.";
+
+    const prompt = `
+Today is ${todayDate}. Match daily sleep configurations, peak energy preferences: ${JSON.stringify(preferences)}.
+Deadlines list:
+${JSON.stringify(deadlines)}
+
+Calculate detailed metrics for each action-path deadline that is active (status !== 'completed'):
+1. Failure Probability (0-100)% based on required hours vs available capacity, proximity, and progress vs expected progress.
+2. Available Capacity: (availableHoursPerDay * Days Remaining)
+3. Remaining Work: Sum of estimated hours of incomplete subtasks
+4. Deficit: Remaining Work - Available Capacity (positive is deficit, negative is surplus)
+5. Expected Progress: Mathematical percentage of where they should be if study was distributed evenly over the project time.
+6. Days Remaining
+7. Risk Drivers: Break down the risk into exactly 3 highly contextual points with a number contribution (e.g. [{"name": "Deadline proximity", "score": 35}, {"name": "Workload overload", "score": 28}, {"name": "Behind expected progress", "score": 20}])
+8. Predicted Outcome: E.g., "Resume likely incomplete before deadline." or "Success achievable with prompt chronological synchronization."
+9. AI Explanation: A serious, predictive, concise evaluation of what is holding them back and why path-reconstruction is urgent.
+
+Format your output as a JSON array of forecasts matching this structure:
+[
+  {
+    "deadlineId": "string",
+    "title": "string",
+    "failureProbability": number,
+    "remainingHours": number,
+    "availableCapacity": number,
+    "deficitOrSurplus": number,
+    "daysRemaining": number,
+    "progressExpected": number,
+    "progressActual": number,
+    "riskDrivers": [
+      { "name": "string", "score": number }
+    ],
+    "predictedOutcome": "string",
+    "aiExplanation": "string"
+  }
+]
+`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        temperature: 0.2
+      }
+    });
+
+    const contentText = response.text || "[]";
+    res.json(JSON.parse(contentText));
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+// 5. Guardian Intervention Center
+app.post("/api/gemini/intervention", async (req, res) => {
+  try {
+    const { deadline, preferences } = req.body;
+    const ai = getAI();
+
+    const systemInstruction = 
+      "You are the Guardian Intervention Center, an autonomous AI recovery dispatcher. " +
+      "Your sole mission is to generate immediate emergency operational corrections (merging subtasks, skipping polishing tasks, " +
+      "shifting deep work to peak hours) to rescue a high-risk user deadline from failure. " +
+      "Respond strictly with plain JSON.";
+
+    const prompt = `
+High-risk Deadline Goal:
+- Title: "${deadline.title}"
+- Description: "${deadline.description || ''}"
+- Current Progress: ${deadline.currentProgress}%
+- Current Risk: ${deadline.riskScore}%
+- Subtasks to optimize: ${JSON.stringify((deadline.subtasks || []).filter((t: any) => !t.completed))}
+- User Peak Energy time: ${preferences.peakEnergy}
+
+Generate 3 realistic and highly tactical intervention action steps:
+- Action 1: task consolidation/merger (e.g., 'Merge portfolio review and resume review')
+- Action 2: scope reduction (e.g., 'Remove low-value polishing tasks')
+- Action 3: chronotype synchronization (e.g., 'Move deep work to peak energy hours')
+
+For each action, specify the title, a descriptive strategy, the category ('consolidation' | 'scope_reduction' | 'chronotype_sync'), and minutes saved.
+Calculate a new projected risk score (from 0 to 100) after completing these actions (should be significantly lower than their current ${deadline.riskScore}%).
+
+Format your output as a JSON object matching this structure:
+{
+  "deadlineId": "${deadline.id}",
+  "currentRisk": ${deadline.riskScore},
+  "projectedRisk": number,
+  "interventionTriggered": true,
+  "emergencyRecoveryPlan": "A reassuring but urgent message about how this agent intervention preserves the critical timeline.",
+  "actions": [
+    {
+      "title": "string",
+      "strategy": "string",
+      "timeSavedMin": number,
+      "category": "string"
+    }
+  ]
+}
+`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        temperature: 0.2
+      }
+    });
+
+    const contentText = response.text || "{}";
+    res.json(JSON.parse(contentText));
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+// 6. Outcome Simulator
+app.post("/api/gemini/outcome-simulator", async (req, res) => {
+  try {
+    const { deadline, preferences } = req.body;
+    const ai = getAI();
+
+    const systemInstruction = 
+      "You are the Outcome Simulator of Deadline Guardian. Your purpose is to simulate two clear futures: " +
+      "Scenario A: If the user ignores recommendations, resulting in compounding delays and failure. " +
+      "Scenario B: If the user follows Guardian recommendations, achieving balanced milestone progression and success. " +
+      "Respond strictly with plain JSON.";
+
+    const prompt = `
+We are simulating the future outcome for the deadline:
+"${deadline.title}" (Current Risk Score: ${deadline.riskScore}%).
+Subtasks left: ${JSON.stringify((deadline.subtasks || []).filter((t: any) => !t.completed))}
+
+Please simulate a day-by-day progress timeline for the next 4 days (Day 1, Day 2, Day 3, Deadline Day) under both Scenario A and Scenario B.
+- For Scenario A (Ignore): show slow/stagnant progress, culminating in FAIL.
+- For Scenario B (With Guardian): show healthy step-up progress, culminating in SUCCESS.
+
+You MUST return your response as a valid JSON object matching this structure:
+{
+  "deadlineId": "${deadline.id}",
+  "successProbabilityWith": number,
+  "successProbabilityWithout": number,
+  "scenarioAExpl": "A realistic, warnings-focused prediction of what triggers the final failure if they ignore advice.",
+  "scenarioBExpl": "An inspiring, metrics-oriented description of how following the advice streamlines delivery.",
+  "timeline": [
+    {
+      "dayLabel": "Day 1",
+      "withoutProgress": number,
+      "withProgress": number,
+      "withoutLabel": "string describing stagnation",
+      "withLabel": "string describing breakthrough"
+    },
+    ... include exactly 4 elements ...
+  ]
+}
+`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        temperature: 0.2
+      }
+    });
+
+    const contentText = response.text || "{}";
+    res.json(JSON.parse(contentText));
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+// 7. Today's Energized Copilot Flow (AI Missions)
+app.post("/api/gemini/copilot-missions", async (req, res) => {
+  try {
+    const { deadlines, preferences } = req.body;
+    const ai = getAI();
+
+    const systemInstruction = 
+      "You are Today's Energized Copilot Flow planner. Instead of listing generic work blocks, your job is to craft high-impact, " +
+      "contextual study/work 'missions' using active user subtasks. Make them sound exciting, like psychological coaching milestones. " +
+      "Respond strictly with plain JSON.";
+
+    const prompt = `
+User peak energy preferences: ${JSON.stringify(preferences)}
+Active deadlines and subtasks:
+${JSON.stringify(deadlines.filter((d: any) => d && d.status !== 'completed'))}
+
+Generate exactly 3 personalized 'missions' for today that align with their unfinished subtasks.
+Each mission must include:
+- goal: e.g. "Complete React Project Experience Section"
+- subtaskAssociated: matching the title of an uncompleted subtask if possible, or related.
+- durationMin: number (e.g. 45 or 30 or 50)
+- successCriteria: array of 3 specific and atomic check-off bullet points
+- progressGainPredict: number (e.g., 12 or 8)
+- difficulty: "Low" | "Medium" | "High"
+- confidence: number (percentage e.g. 78)
+- timeOfDayAdvice: when they should execute it (aligned with preferences: e.g. "Peak Afternoon", "Pre-Sleep Review")
+
+Format the response as a JSON array of missions:
+[
+  {
+    "goal": "string",
+    "subtaskAssociated": "string",
+    "durationMin": number,
+    "successCriteria": ["string", "string", "string"],
+    "progressGainPredict": number,
+    "difficulty": "Low" | "Medium" | "High",
+    "confidence": number,
+    "timeOfDayAdvice": "string"
+  }
+]
+`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        temperature: 0.3
+      }
+    });
+
+    const contentText = response.text || "[]";
+    res.json(JSON.parse(contentText));
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+// 8. Guardian Memory
+app.post("/api/gemini/guardian-memory", async (req, res) => {
+  try {
+    const { deadlines } = req.body;
+    const ai = getAI();
+
+    const systemInstruction = 
+      "You are the Guardian Memory and Behavioral Analyst. Your mission is to analyze previous user failures, completed deadlines, " +
+      "common blocker diagnoses, and procrastination patterns to uncover deep behavioral trends. Be analytical, educational, and constructive. " +
+      "Respond strictly with plain JSON.";
+
+    const prompt = `
+Review this user's current and previous milestones/goals data:
+${JSON.stringify(deadlines)}
+
+Analyze their patterns:
+- Finished vs Missed deadlines
+- Blocker categories they frequently encounter (perfectionism, overwhelm, lack of interest, etc.)
+- Buffer selection (bufferRatio) and daily study hours (availableHoursPerDay)
+
+Please synthesize historic behavioral insights:
+1. Two "Procrastination Pattern Cards": clear descriptions of behavioral trends e.g. "Perfectionism Paralyzer: You begin writing phase late because you over-polish drafts."
+2. AI-generated behavioral insights paragraph.
+3. List of 3 actionable behavioral "Improvement Recommendations" to reprogram their habits.
+4. A mock history timeline showing previous completed and missed goals to make the history dashboard fully populated with analytical value.
+
+Format your output as a single JSON object:
+{
+  "patternCards": [
+    {
+      "title": "string",
+      "symptom": "string",
+      "context": "string"
+    }
+  ],
+  "insights": "string (Main analytical summary of their learning profile)",
+  "recommendations": [
+    {
+      "habit": "string",
+      "fix": "string",
+      "impact": "High" | "Medium"
+    }
+  ],
+  "historicSuccessRate": number
+}
+`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        temperature: 0.3
+      }
+    });
+
+    const contentText = response.text || "{}";
+    res.json(JSON.parse(contentText));
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+// 9. Autonomous Intervention Engine
+app.post("/api/gemini/active-intervention", async (req, res) => {
+  try {
+    const { deadline, preferences } = req.body;
+    const ai = getAI();
+
+    const systemInstruction = 
+      "You are the Autonomous Intervention Engine of Deadline Guardian (an active intervention agent). " +
+      "Your sole mission is to take absolute control of high-risk project paths by restructuring workloads, " +
+      "compiling compressed execution plans, and generating single critical daily missions. " +
+      "Respond strictly with plain JSON.";
+
+    const prompt = `
+High-risk Deadline Goal:
+- Title: "${deadline.title}"
+- Description: "${deadline.description || ''}"
+- Current Progress: ${deadline.currentProgress}%
+- Current Risk: ${deadline.riskScore}%
+- Active Subtasks: ${JSON.stringify((deadline.subtasks || []).filter((t: any) => !t.completed))}
+- Chronotype Context: ${JSON.stringify(preferences)}
+
+Please formulate an absolute control operational restructuring package:
+1. Emergency Action Plan: Top 3 heavy-impact actions (each specifying description, impact-points, and estimated minutes saved).
+2. Compressed Execution Plan:
+   - mergedTasks: Detailed operational strategy on how to merge low-value related subtasks.
+   - removedTasks: Specific low-impact work items to remove/skip entirely to stay on schedule.
+   - prioritizedCore: The primary core deliverables that must receive 100% of study focus.
+3. Daily Mission:
+   - task: Single most important action to execute today.
+   - durationMin: Estimated completion time in minutes.
+   - whyItMatters: A commanding, focused explanation of why this specific action intercepts the failure cascade.
+
+Calculate:
+- projectedRisk: The optimized risk percentage achieved after implementing this control program (should be significantly lower than ${deadline.riskScore}%).
+- totalTimeSavedMin: Sum of all saved times.
+
+You MUST format the output as a valid JSON object matching this structure:
+{
+  "deadlineId": "${deadline.id}",
+  "currentRisk": ${deadline.riskScore},
+  "projectedRisk": number,
+  "totalTimeSavedMin": number,
+  "emergencyActions": [
+    { "action": "string", "impact": "string", "timeSaved": number }
+  ],
+  "compressedExecutionPlan": {
+    "mergedTasks": "string",
+    "removedTasks": "string",
+    "prioritizedCore": "string"
+  },
+  "dailyMission": {
+    "task": "string",
+    "durationMin": number,
+    "whyItMatters": "string"
+  }
+}
+`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        temperature: 0.2
+      }
+    });
+
+    const contentText = response.text || "{}";
+    res.json(JSON.parse(contentText));
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
 // Google Integration Mock / Simulator Endpoints
 // Since real Google Workspace OAuth creation failed due to quota limit, we build beautiful full-fidelity API routes
 // that allow importing simulated authentic items & writing to them, creating a completely seamless app experience.

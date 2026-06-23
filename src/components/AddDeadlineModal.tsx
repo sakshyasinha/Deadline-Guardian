@@ -127,7 +127,6 @@ export default function AddDeadlineModal({ onAdd, onClose }: AddDeadlineModalPro
                   type="date"
                   required
                   value={targetDate}
-                  placeholder="e.g. 2023-08-01"
                   min={new Date().toISOString().split('T')[0]}
                   onChange={(e) => setTargetDate(e.target.value)}
                   className="w-full bg-black/40 border border-white/10 focus:border-indigo-500 text-slate-100 rounded-xl px-4 py-2 text-sm outline-none transition"
@@ -139,7 +138,6 @@ export default function AddDeadlineModal({ onAdd, onClose }: AddDeadlineModalPro
               <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase font-sans tracking-wider">BUFFER MARGIN LEVEL</label>
               <select
                 value={bufferRatio}
-                title="Buffer Margin Level"
                 onChange={(e) => setBufferRatio(parseFloat(e.target.value))}
                 className="w-full bg-black/40 border border-white/10 focus:border-indigo-500 text-slate-100 rounded-xl px-4 py-2 text-sm outline-none transition"
               >
@@ -162,7 +160,6 @@ export default function AddDeadlineModal({ onAdd, onClose }: AddDeadlineModalPro
               type="range"
               min="1"
               max="12"
-              placeholder="e.g. 3"
               value={availableHoursPerDay}
               onChange={(e) => setAvailableHoursPerDay(parseInt(e.target.value))}
               className="w-full h-1 bg-white/15 rounded-lg appearance-none cursor-pointer accent-indigo-500 mt-2"
