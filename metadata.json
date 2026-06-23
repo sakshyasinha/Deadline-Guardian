@@ -1,0 +1,6 @@
+{
+  "name": "Deadline Guardian",
+  "description": "An AI-powered productivity agent that helps students avoid missing deadlines by predicting failure and automatically generating recovery plans, integrated with Google Calendar and Tasks.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
